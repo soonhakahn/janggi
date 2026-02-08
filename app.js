@@ -10,6 +10,7 @@ const canvas = document.getElementById('board');
 const ctx = canvas.getContext('2d');
 const statusEl = document.getElementById('status');
 const kiboEl = document.getElementById('kibo');
+const modeEl = document.getElementById('mode');
 
 const BTN = {
   new: document.getElementById('btnNew'),
@@ -18,6 +19,11 @@ const BTN = {
   copy: document.getElementById('btnCopy'),
   paste: document.getElementById('btnPaste'),
 };
+
+let gameMode = 'local'; // 'local' | 'cpu'
+let humanSide = 'R';
+let cpuSide = 'B';
+let cpuThinking = false;
 
 const W = canvas.width;
 const H = canvas.height;
@@ -86,10 +92,12 @@ let legalTargets = []; // [{x,y}]
 function other(side){ return side==='R'?'B':'R'; }
 
 function pieceLabel(p){
-  // Korean chars, side-color drawn via fill style
-  const map = {g:'장',a:'사',e:'상',h:'마',r:'차',c:'포',s:'졸'};
-  const mapB = {g:'장',a:'사',e:'상',h:'마',r:'차',c:'포',s:'졸'};
-  return (p.side==='R'?map:mapB)[p.type] || '?';
+  // 한자 표기 (초/한 표기 관행)
+  // Blue(초): 將 士 象 馬 車 包 卒
+  // Red(한): 帥 仕 相 馬 車 砲 兵
+  const blue = {g:'將',a:'士',e:'象',h:'馬',r:'車',c:'包',s:'卒'};
+  const red  = {g:'帥',a:'仕',e:'相',h:'馬',r:'車',c:'砲',s:'兵'};
+  return (p.side==='R'?red:blue)[p.type] || '?';
 }
 
 function toScreen(x,y){
@@ -487,10 +495,12 @@ function move(from,to){
   updateStatus();
   draw();
 
+  maybeCpuTurn();
   return true;
 }
 
 function undo(){
+  if (cpuThinking) return;
   const last = S.history.pop();
   if (!last) return;
   const {from,to,piece,cap,turnBefore} = last;
@@ -499,6 +509,20 @@ function undo(){
   S.turn = turnBefore;
   S.kibo.pop();
   kiboEl.value = S.kibo.join('\n');
+
+  // vs CPU 모드에서는 "내 수"까지 되돌릴 때 CPU 응수도 같이 되돌리기(가능하면)
+  if (gameMode==='cpu' && S.history.length>0){
+    const maybeCpu = S.history[S.history.length-1];
+    if (maybeCpu && maybeCpu.turnBefore === cpuSide){
+      const last2 = S.history.pop();
+      S.board[last2.from.y][last2.from.x] = last2.piece;
+      S.board[last2.to.y][last2.to.x] = last2.cap;
+      S.turn = last2.turnBefore;
+      S.kibo.pop();
+      kiboEl.value = S.kibo.join('\n');
+    }
+  }
+
   selected = null;
   legalTargets = [];
   updateStatus();
@@ -506,22 +530,29 @@ function undo(){
 }
 
 function newGame(){
+  cpuThinking = false;
   S = initialState();
   selected = null;
   legalTargets = [];
   kiboEl.value = '';
   updateStatus();
   draw();
+  maybeCpuTurn();
 }
 
 function updateStatus(){
   const sideName = (S.turn==='R') ? '홍(아래)' : '청(위)';
-  let text = `로컬 2인 · ${sideName} 차례`;
+  const modeName = (gameMode==='cpu') ? '개인 vs PC' : '로컬 2인';
+  let text = `${modeName} · ${sideName} 차례`;
+  if (cpuThinking) text += ' · PC 생각중…';
   if (isInCheck(S.board, S.turn)) text += ' · 체크!';
   statusEl.textContent = text;
 }
 
 function onTapBoard(evt){
+  if (cpuThinking) return;
+  if (gameMode==='cpu' && S.turn===cpuSide) return;
+
   const rect = canvas.getBoundingClientRect();
   const px = (evt.clientX - rect.left) * (canvas.width/rect.width);
   const py = (evt.clientY - rect.top) * (canvas.height/rect.height);
@@ -564,6 +595,11 @@ canvas.addEventListener('touchend', (e)=>{
   e.preventDefault();
 }, {passive:false});
 
+modeEl?.addEventListener('change', ()=>{
+  gameMode = modeEl.value;
+  newGame();
+});
+
 BTN.new.addEventListener('click', newGame);
 BTN.undo.addEventListener('click', undo);
 BTN.flip.addEventListener('click', ()=>{flipped=!flipped; draw();});
@@ -603,5 +639,54 @@ function loadKibo(text){
   }
 }
 
+// --- CPU player (very simple) ---
+const VALUE = {g:10000,r:130,c:70,h:50,e:35,a:30,s:15};
+function allLegalMovesForSide(side){
+  const moves=[];
+  const turnSaved = S.turn;
+  S.turn = side;
+  for (let y=0;y<10;y++) for (let x=0;x<9;x++){
+    const p = S.board[y][x];
+    if (!p || p.side!==side) continue;
+    const ts = legalMovesFrom(x,y);
+    for (const t of ts) moves.push({from:{x,y}, to:{x:t.x,y:t.y}});
+  }
+  S.turn = turnSaved;
+  return moves;
+}
+function scoreMove(m){
+  const cap = S.board[m.to.y][m.to.x];
+  let s = 0;
+  if (cap) s += (VALUE[cap.type]||0) * 10;
+  // prefer giving check
+  const b2 = deepClone(S.board);
+  b2[m.to.y][m.to.x] = b2[m.from.y][m.from.x];
+  b2[m.from.y][m.from.x] = null;
+  if (isInCheck(b2, other(cpuSide))) s += 25;
+  return s + Math.random();
+}
+function cpuPlayOne(){
+  const moves = allLegalMovesForSide(cpuSide);
+  if (moves.length===0) return;
+  moves.sort((a,b)=>scoreMove(b)-scoreMove(a));
+  const best = moves[0];
+  move(best.from, best.to);
+}
+function maybeCpuTurn(){
+  if (gameMode!=='cpu') return;
+  if (S.turn!==cpuSide) return;
+  if (cpuThinking) return;
+  cpuThinking = true;
+  updateStatus();
+  setTimeout(()=>{
+    cpuPlayOne();
+    cpuThinking = false;
+    updateStatus();
+    draw();
+  }, 350);
+}
+
 updateStatus();
 draw();
+if (modeEl) { gameMode = modeEl.value || 'local'; }
+maybeCpuTurn();
