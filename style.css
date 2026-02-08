@@ -1,0 +1,71 @@
+:root{
+  --bg:#0b1220;
+  --fg:#e8eefc;
+  --muted:#a7b3d1;
+  --card:#121b2f;
+  --btn:#1a2a4d;
+  --btn2:#233a6e;
+  --line:#3b4d7e;
+  --red:#ff6b6b;
+  --blue:#4da3ff;
+  --hl:#ffe08a;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  background:linear-gradient(180deg,var(--bg),#070b14);
+  color:var(--fg);
+}
+header{
+  display:flex;
+  gap:12px;
+  justify-content:space-between;
+  align-items:center;
+  padding:14px 14px 10px;
+}
+.title .appname{font-weight:800;font-size:18px;letter-spacing:-0.2px}
+.title .subtitle{color:var(--muted);font-size:13px;margin-top:2px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.btn{
+  border:1px solid rgba(255,255,255,0.12);
+  background:linear-gradient(180deg,var(--btn2),var(--btn));
+  color:var(--fg);
+  padding:8px 10px;
+  border-radius:10px;
+  font-size:13px;
+}
+.btn:active{transform:translateY(1px)}
+main{display:grid;grid-template-columns:1fr;gap:12px;padding:0 14px 14px}
+.board-wrap{
+  width:min(92vw, 520px);
+  margin:0 auto;
+  background:radial-gradient(120% 120% at 20% 0%, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+  border:1px solid rgba(255,255,255,0.12);
+  border-radius:18px;
+  padding:12px;
+}
+canvas{width:100%;height:auto;display:block;touch-action:manipulation}
+.panel{
+  width:min(92vw, 520px);
+  margin:0 auto;
+  background:rgba(18,27,47,0.8);
+  border:1px solid rgba(255,255,255,0.12);
+  border-radius:18px;
+  padding:12px;
+}
+.panel summary{cursor:pointer;color:var(--fg);font-weight:700}
+.panel ul{margin:10px 0 0 18px;color:var(--muted)}
+.row{display:flex;gap:8px;margin:10px 0}
+textarea{
+  width:100%;
+  padding:10px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,0.14);
+  background:rgba(0,0,0,0.25);
+  color:var(--fg);
+  resize:vertical;
+}
+footer{padding:0 14px 18px;text-align:center;color:var(--muted);font-size:12px}
+.muted{opacity:0.9}

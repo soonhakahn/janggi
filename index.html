@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1220" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>장기 (로컬 2인)</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./icon-192.png" sizes="192x192" />
+  <link rel="apple-touch-icon" href="./icon-192.png" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <header>
+    <div class="title">
+      <div class="appname">장기</div>
+      <div class="subtitle" id="status">로컬 2인 · 홍(아래) 차례</div>
+    </div>
+    <div class="actions">
+      <button id="btnNew" class="btn">새 게임</button>
+      <button id="btnUndo" class="btn">되돌리기</button>
+      <button id="btnFlip" class="btn">판 뒤집기</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="board-wrap">
+      <canvas id="board" width="900" height="1000" aria-label="장기판"></canvas>
+    </div>
+
+    <section class="panel">
+      <details>
+        <summary>도움말</summary>
+        <ul>
+          <li>말을 탭 → 이동 가능한 곳이 표시됩니다.</li>
+          <li>목표 칸을 탭하면 착수합니다.</li>
+          <li>장군이 서로 마주보는(비행장군) 상태는 불법입니다.</li>
+          <li>체크 상태를 풀지 못하는 수는 불법입니다.</li>
+        </ul>
+      </details>
+      <details>
+        <summary>기보 (복사/붙여넣기)</summary>
+        <div class="row">
+          <button id="btnCopy" class="btn">복사</button>
+          <button id="btnPaste" class="btn">붙여넣기(불러오기)</button>
+        </div>
+        <textarea id="kibo" rows="6" placeholder="자동으로 기록됩니다."></textarea>
+      </details>
+    </section>
+  </main>
+
+  <footer>
+    <span class="muted">오프라인 동작(PWA) · iPhone에서 ‘홈 화면에 추가’로 앱처럼 실행 가능</span>
+  </footer>
+
+  <script src="./app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js');
+    }
+  </script>
+</body>
+</html>
