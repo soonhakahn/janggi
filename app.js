@@ -18,7 +18,35 @@ const BTN = {
   flip: document.getElementById('btnFlip'),
   copy: document.getElementById('btnCopy'),
   paste: document.getElementById('btnPaste'),
+  sound: document.getElementById('btnSound'),
 };
+
+class SFX {
+  constructor(){ this.ctx=null; this.enabled=true; }
+  init(){
+    if(!this.enabled) return;
+    if(!this.ctx) this.ctx = new (window.AudioContext||window.webkitAudioContext)();
+    if(this.ctx.state==='suspended') this.ctx.resume();
+  }
+  toggle(){ this.enabled=!this.enabled; if(this.enabled) this.init(); return this.enabled; }
+  tone(type,f0,f1,vol=0.05,dur=0.08){
+    if(!this.enabled) return; this.init(); if(!this.ctx) return;
+    const t=this.ctx.currentTime;
+    const o=this.ctx.createOscillator(); const g=this.ctx.createGain();
+    o.type=type; o.frequency.setValueAtTime(f0,t);
+    if(f1) o.frequency.exponentialRampToValueAtTime(Math.max(20,f1), t+dur);
+    g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(g); g.connect(this.ctx.destination); o.start(t); o.stop(t+dur+0.02);
+  }
+  select(){ this.tone('sine',560,460,0.035,0.05); }
+  move(){ this.tone('triangle',420,300,0.04,0.06); }
+  capture(){ this.tone('sawtooth',260,90,0.07,0.09); }
+  check(){ [660,880].forEach((f,i)=>setTimeout(()=>this.tone('square',f,f*0.95,0.05,0.06),i*70)); }
+  illegal(){ this.tone('sine',220,160,0.04,0.07); }
+  undo(){ this.tone('triangle',360,220,0.05,0.08); }
+  newGame(){ [520,660].forEach((f,i)=>setTimeout(()=>this.tone('triangle',f,f*1.05,0.05,0.07),i*60)); }
+}
+const sfx = new SFX();
 
 let gameMode = 'local'; // 'local' | 'cpu'
 let humanSide = 'R';
@@ -479,6 +507,7 @@ function move(from,to){
 
   const cap = S.board[to.y][to.x];
   const turnBefore = S.turn;
+  if (cap) sfx.capture(); else sfx.move();
   S.history.push({from,to,piece:deepClone(piece),cap:cap?deepClone(cap):null,turnBefore});
 
   S.board[to.y][to.x] = piece;
@@ -494,6 +523,7 @@ function move(from,to){
   legalTargets = [];
   updateStatus();
   draw();
+  if (isInCheck(S.board, S.turn)) sfx.check();
 
   maybeCpuTurn();
   return true;
@@ -501,6 +531,7 @@ function move(from,to){
 
 function undo(){
   if (cpuThinking) return;
+  sfx.undo();
   const last = S.history.pop();
   if (!last) return;
   const {from,to,piece,cap,turnBefore} = last;
@@ -531,6 +562,7 @@ function undo(){
 
 function newGame(){
   cpuThinking = false;
+  sfx.newGame();
   S = initialState();
   selected = null;
   legalTargets = [];
@@ -566,10 +598,12 @@ function onTapBoard(evt){
       move(selected, b);
       return;
     }
+    sfx.illegal();
     // reselect own piece
     if (p && p.side===S.turn){
       selected = b;
       legalTargets = legalMovesFrom(b.x,b.y);
+      sfx.select();
       draw();
       return;
     }
@@ -583,6 +617,7 @@ function onTapBoard(evt){
   if (p && p.side===S.turn){
     selected = b;
     legalTargets = legalMovesFrom(b.x,b.y);
+    sfx.select();
     draw();
   }
 }
@@ -603,6 +638,11 @@ modeEl?.addEventListener('change', ()=>{
 BTN.new.addEventListener('click', newGame);
 BTN.undo.addEventListener('click', undo);
 BTN.flip.addEventListener('click', ()=>{flipped=!flipped; draw();});
+BTN.sound?.addEventListener('click', ()=>{
+  const on = sfx.toggle();
+  BTN.sound.textContent = on ? '🔊 사운드 ON' : '🔇 사운드 OFF';
+  if (on) sfx.select();
+});
 BTN.copy.addEventListener('click', async ()=>{
   try{
     await navigator.clipboard.writeText(kiboEl.value||'');
